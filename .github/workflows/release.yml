@@ -31,8 +31,11 @@ jobs:
         with:
           node-version: 22
           cache: npm
+          registry-url: https://registry.npmjs.org
       - run: npm ci
       - run: npm run build
+      - name: Upgrade npm for OIDC support
+        run: npm install -g npm@latest
       - run: npm publish --access public
 
   create-github-release:
