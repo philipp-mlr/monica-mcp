@@ -214,11 +214,15 @@ npm publish --dry-run
 
 ### CI/CD auto-publish
 
-The included GitHub Actions workflow (`.github/workflows/ci.yml`) auto-publishes to npm when a commit on `main` starts with `release`. To use this:
+The included GitHub Actions workflow (`.github/workflows/release.yml`) auto-publishes to npm when a tag `v*.*.*` is pushed. To use this:
 
-1. Create an npm access token at https://www.npmjs.com/settings/~/tokens (type: Automation)
+1. Create an npm **Automation** access token at https://www.npmjs.com/settings/~/tokens (type must be **Automation**, not "Publish" — Automation tokens bypass 2FA)
 2. Add it as a GitHub secret: `NPM_TOKEN`
-3. Push a commit: `git commit -m "release: v0.1.1"`
+3. Tag and push:
+   ```bash
+   npm version patch
+   git push origin main --tags
+   ```
 
 ## License
 
