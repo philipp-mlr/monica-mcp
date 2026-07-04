@@ -5,6 +5,8 @@ A full-coverage [Model Context Protocol](https://modelcontextprotocol.io) server
 Designed for AI assistants like Claude Desktop, Hermes, Cline, and any MCP-compatible client.
 
 > **Note:** This project is 100% AI-generated. The code, tests, CI/CD, and documentation were all written by an AI agent (Hermes). No human wrote any of the code.
+>
+> **Tested against a live Monica v4.1.2 instance** on the author's homelab. All 29 tools validated with create → read → update → delete lifecycle tests. Test data was cleaned up after verification.
 
 ## Design Philosophy
 
@@ -171,6 +173,13 @@ npm run typecheck        # Type-check without emitting
 npm test                 # Run tests (26 tests)
 npm test -- --coverage   # Run tests with coverage
 ```
+
+## Roadmap
+
+- [ ] **Automated integration tests** — spin up a fresh Monica Docker container in CI, run tools against it, tear it down. This would catch API regressions before they affect users.
+- [ ] **Rate limiting** — respect Monica's 60 req/min limit with client-side throttling
+- [ ] **Photo/document upload** — if Monica's API ever supports these, add the tools back
+- [ ] **npm release cadence** — publish new versions automatically when the version watchdog detects a Monica release that passes integration tests
 
 ## Publishing to npm
 

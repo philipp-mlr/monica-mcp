@@ -1,0 +1,75 @@
+name: Version Watchdog
+
+on:
+  schedule:
+    - cron: "0 8 * * *"
+  workflow_dispatch:
+
+jobs:
+  check-monica-version:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Fetch latest Monica release
+        id: monica
+        run: |
+          VER=$(curl -sL https://api.github.com/repos/monicahq/monica/releases/latest | jq -r '.tag_name // empty')
+          echo "latest=$VER" >> "$GITHUB_OUTPUT"
+          echo "Found: $VER"
+
+      - name: Read last-checked version
+        id: cache
+        run: |
+          PREV=""
+          [ -f .cache/monica-last-version ] && PREV=$(cat .cache/monica-last-version)
+          echo "previous=$PREV" >> "$GITHUB_OUTPUT"
+          echo "Previous: ${PREV:-none}"
+
+      - name: Save new version
+        if: steps.monica.outputs.latest != ''
+        run: |
+          mkdir -p .cache
+          echo "${{ steps.monica.outputs.latest }}" > .cache/monica-last-version
+
+      - name: Commit cache update
+        if: steps.monica.outputs.latest != ''
+        env:
+          GH_TOKEN: ${{ github.token }}
+        run: |
+          git config user.name "monica-mcp bot"
+          git config user.email "bot@monica-mcp"
+          git add .cache/monica-last-version
+          git diff --staged --quiet || git commit -m "chore: update Monica version cache"
+          git push
+
+      - name: Create issue on version change
+        if: |
+          steps.monica.outputs.latest != '' &&
+          steps.cache.outputs.previous != '' &&
+          steps.monica.outputs.latest != steps.cache.outputs.previous
+        env:
+          GH_TOKEN: ${{ github.token }}
+          NEW_VER: ${{ steps.monica.outputs.latest }}
+          OLD_VER: ${{ steps.cache.outputs.previous }}
+        run: |
+          EXISTING=$(gh issue list --label testing --json title --jq \
+            '.[] | select(.title | startswith("New Monica release: '"$NEW_VER"'")) | .title')
+          if [ -n "$EXISTING" ]; then
+            echo "Issue already exists for $NEW_VER"
+            exit 0
+          fi
+          cat > /tmp/issue-body.md <<- EOM
+          Monica just shipped version **$NEW_VER** (was $OLD_VER).
+
+          ## Action
+
+          1. Update the Monica instance
+          2. Run integration tests
+          3. Check API changes
+          4. Update tested version in README
+
+          Release: https://github.com/monicahq/monica/releases/tag/$NEW_VER
+          Changelog: https://github.com/monicahq/monica/blob/$NEW_VER/CHANGELOG.md
+          EOM
+          gh issue create --title "New Monica release: $NEW_VER" --label testing --body-file /tmp/issue-body.md
