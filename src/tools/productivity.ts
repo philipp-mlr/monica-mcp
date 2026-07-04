@@ -6,13 +6,14 @@ import { makeCrudTools, idSchema, type ToolDef } from "../factory.js";
 const noteCreateSchema = z.object({
   contact_id: z.number().int().describe("Contact ID"),
   body: z.string().describe("Note content"),
-  is_favorited: z.boolean().optional().describe("Whether this note is favorited"),
+  is_favorited: z.number().int().min(0).max(1).describe("Whether the note is favorited: 0 (false) or 1 (true)"),
 });
 
 const noteUpdateSchema = z.object({
   id: idSchema,
   body: z.string().optional().describe("Note content"),
-  is_favorited: z.boolean().optional(),
+  contact_id: z.number().int().optional().describe("Contact ID"),
+  is_favorited: z.number().int().min(0).max(1).optional().describe("Favorited: 0 (false) or 1 (true)"),
 });
 
 const noteTools: ToolDef[] = [
@@ -30,7 +31,8 @@ const taskCreateSchema = z.object({
   contact_id: z.number().int().describe("Contact ID"),
   title: z.string().max(255).describe("Task title"),
   description: z.string().nullable().optional().describe("Task description"),
-  completed: z.boolean().optional().describe("Whether the task is completed"),
+  completed: z.number().int().min(0).max(1).describe("Task status: 0 (incomplete) or 1 (complete)"),
+  completed_at: z.string().nullable().optional().describe("Completion date (YYYY-MM-DD)"),
 });
 
 const taskUpdateSchema = taskCreateSchema.extend({ id: idSchema });
@@ -50,9 +52,9 @@ const reminderCreateSchema = z.object({
   contact_id: z.number().int().describe("Contact ID"),
   title: z.string().max(255).describe("Reminder title"),
   description: z.string().nullable().optional().describe("Reminder description"),
-  frequency_type: z.string().describe("Frequency type: one_time, recurring, etc."),
-  frequency_number: z.number().int().nullable().optional().describe("Frequency interval"),
-  initial_date: z.string().describe("Initial date (YYYY-MM-DD)"),
+  next_expected_date: z.string().describe("Date when the reminder should trigger (YYYY-MM-DD, must be in the future)"),
+  frequency_type: z.string().describe("Frequency type: one_time, week, month, or year"),
+  frequency_number: z.number().int().nullable().optional().describe("Frequency interval (for recurring reminders)"),
 });
 
 const reminderUpdateSchema = reminderCreateSchema.extend({ id: idSchema });

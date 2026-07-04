@@ -17,6 +17,7 @@ const currencyTools: ToolDef[] = [
   ...makeCrudTools({
     entityName: "currency",
     basePath: "/currencies",
+    pluralName: "currencies",
   }),
 ];
 

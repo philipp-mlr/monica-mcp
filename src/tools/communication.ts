@@ -18,6 +18,7 @@ const activityTools: ToolDef[] = [
   ...makeCrudTools({
     entityName: "activity",
     basePath: "/activities",
+    pluralName: "activities",
     createSchema: activityCreateSchema,
     updateSchema: activityUpdateSchema,
   }),
@@ -116,6 +117,36 @@ const conversationTools: ToolDef[] = [
     handler: async (client, args) => {
       const { conversation_id, ...data } = args;
       return client.create(`/conversations/${conversation_id}/messages`, data);
+    },
+  },
+
+  // Update a message in a conversation
+  {
+    name: "monica_update_conversation_message",
+    description: "Update a message in a conversation.",
+    schema: z.object({
+      conversation_id: idSchema,
+      message_id: idSchema,
+      content: z.string().describe("Updated message content"),
+      written_at: z.string().optional().describe("When the message was written (YYYY-MM-DD)"),
+      written_by_me: z.boolean().optional().describe("Whether the message was written by me"),
+    }),
+    handler: async (client, args) => {
+      const { conversation_id, message_id, ...data } = args;
+      return client.update(`/conversations/${conversation_id}/messages/${message_id}`, data);
+    },
+  },
+
+  // Delete a message from a conversation
+  {
+    name: "monica_delete_conversation_message",
+    description: "Delete a message from a conversation.",
+    schema: z.object({
+      conversation_id: idSchema,
+      message_id: idSchema,
+    }),
+    handler: async (client, args) => {
+      return client.delete(`/conversations/${args.conversation_id}/messages/${args.message_id}`);
     },
   },
 ];

@@ -7,11 +7,13 @@ const contactCreateSchema = z.object({
   nickname: z.string().optional().describe("Nickname"),
   gender_id: z.number().int().optional().describe("Gender ID"),
   is_partial: z.boolean().optional().describe("Whether this is a partial contact"),
+  is_birthdate_known: z.boolean().describe("Whether birthdate is known"),
   birthdate: z.string().nullable().optional().describe("Birthdate (YYYY-MM-DD)"),
   birthdate_is_age_based: z.boolean().optional(),
   birthdate_is_year_unknown: z.boolean().optional(),
   birthdate_age: z.number().int().nullable().optional(),
-  is_dead: z.boolean().optional(),
+  is_deceased: z.boolean().describe("Whether contact is deceased"),
+  is_deceased_date_known: z.boolean().describe("Whether deceased date is known"),
   deceased_date: z.string().nullable().optional(),
   job: z.string().nullable().optional(),
   company: z.string().nullable().optional(),
@@ -60,6 +62,19 @@ const contactTools: ToolDef[] = [
     }),
     handler: async (client, args) => {
       return client.list(`/tags/${args.tag_id}/contacts`, args);
+    },
+  },
+
+  // Set tags on a contact (bulk, auto-creates tags that don't exist)
+  {
+    name: "monica_set_contact_tags",
+    description: "Set tags on a contact by name. Automatically creates tags that don't exist yet. Adds tags without removing existing ones.",
+    schema: z.object({
+      contact_id: idSchema,
+      tags: z.array(z.string()).describe("List of tag names to set"),
+    }),
+    handler: async (client, args) => {
+      return client.create(`/contacts/${args.contact_id}/setTags`, { tags: args.tags });
     },
   },
 

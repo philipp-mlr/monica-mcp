@@ -19,6 +19,7 @@ const addressTools: ToolDef[] = [
   ...makeCrudTools({
     entityName: "address",
     basePath: "/addresses",
+    pluralName: "addresses",
     createSchema: addressCreateSchema,
     updateSchema: addressUpdateSchema,
   }),
@@ -29,7 +30,7 @@ const addressTools: ToolDef[] = [
 const contactFieldCreateSchema = z.object({
   contact_id: z.number().int().describe("Contact ID"),
   contact_field_type_id: z.number().int().describe("Contact field type ID"),
-  content: z.string().describe("Field content (e.g. email address, phone number)"),
+  data: z.string().describe("Field content (e.g. email address, phone number)"),
 });
 
 const contactFieldUpdateSchema = contactFieldCreateSchema.extend({ id: idSchema });
@@ -79,6 +80,7 @@ const companyTools: ToolDef[] = [
   ...makeCrudTools({
     entityName: "company",
     basePath: "/companies",
+    pluralName: "companies",
     createSchema: companyCreateSchema,
     updateSchema: companyUpdateSchema,
   }),
@@ -88,8 +90,14 @@ const companyTools: ToolDef[] = [
 
 const occupationCreateSchema = z.object({
   contact_id: z.number().int().describe("Contact ID"),
-  company: z.string().describe("Company name"),
-  job: z.string().describe("Job title"),
+  company_id: z.number().int().describe("Company ID"),
+  title: z.string().max(255).describe("Job title"),
+  description: z.string().max(1000).nullable().optional().describe("Job description"),
+  salary: z.number().int().nullable().optional().describe("Estimated salary"),
+  salary_unit: z.string().nullable().optional().describe("Salary unit: year, month, week, day, hour"),
+  currently_works_here: z.boolean().nullable().optional().describe("Whether the contact currently works here"),
+  start_date: z.string().nullable().optional().describe("Start date (YYYY-MM-DD)"),
+  end_date: z.string().nullable().optional().describe("End date (YYYY-MM-DD)"),
 });
 
 const occupationUpdateSchema = occupationCreateSchema.extend({ id: idSchema });

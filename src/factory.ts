@@ -42,7 +42,7 @@ export function makeCrudTools(opts: {
   // List
   tools.push({
     name: `monica_list_${plural}`,
-    description: `List all ${entityName}s in your account. Supports pagination.`,
+    description: `List all ${plural} in your account. Supports pagination.`,
     schema: z.object({
       ...paginationSchema,
       ...(opts.listParams ?? {}),
