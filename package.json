@@ -1,6 +1,6 @@
 {
   "name": "monica-mcp",
-  "version": "0.1.1",
+  "version": "0.1.2",
   "description": "Full-coverage MCP server for Monica CRM — 130+ operations across all 30 API endpoints",
   "type": "module",
   "main": "dist/index.js",
@@ -24,6 +24,10 @@
   "engines": {
     "node": ">=18",
     "npm": ">=11.5"
+  },
+  "repository": {
+    "type": "git",
+    "url": "https://github.com/philipp-mlr/monica-mcp"
   },
   "keywords": [
     "mcp",
