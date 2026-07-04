@@ -80,13 +80,15 @@ All 30 Monica API endpoints are covered:
 - [x] Scaffold project (package.json, tsconfig, gitignore)
 - [x] TypeScript types for all 30 API entities
 - [x] MonicaClient HTTP wrapper
-- [x] CRUD factory + all entity tool files
-- [x] MCP server entry point (index.ts)
-- [x] README.md
+- [x] Action-based tool factory (one tool per entity, not 5)
+- [x] All entity tool files with action parameters
+- [x] MCP server entry point with security safeguards
+- [x] README.md with tool reference, design docs, AI notice, npm guide
 - [x] LICENSE (MIT)
-- [x] .env.example
-- [x] Unit tests (client, factory, tool coverage)
+- [x] .env.example with safety settings
+- [x] Unit tests (26 tests — client, factory, tool coverage)
 - [x] GitHub Actions CI/CD (test on 18/20/22, build, npm publish)
-- [ ] npm install + build + test verification
+- [x] Verified against live Monica instance
+- [x] Security: read-only mode, delete protection, tool exclusion
 - [ ] npm publish
 - [ ] Wire into Hermes NixOS config

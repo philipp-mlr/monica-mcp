@@ -1,113 +1,48 @@
 import { z } from "zod";
-import { makeCrudTools, idSchema, type ToolDef } from "../factory.js";
+import { makeEntityTool, idSchema, type ToolDef } from "../factory.js";
 
-// ── Relationships ──
-// Note: create uses contact_is + of_contact (not contact_id)
-
-const relationshipCreateSchema = z.object({
+const relationshipFields = {
   contact_is: z.number().int().describe("ID of the primary contact"),
   relationship_type_id: z.number().int().describe("Relationship type ID"),
   of_contact: z.number().int().describe("ID of the secondary contact"),
-});
+};
 
-const relationshipUpdateSchema = z.object({
-  id: idSchema,
-  contact_is: z.number().int().optional().describe("ID of the primary contact"),
-  relationship_type_id: z.number().int().optional().describe("Relationship type ID"),
-  of_contact: z.number().int().optional().describe("ID of the secondary contact"),
-});
-
-const relationshipTools: ToolDef[] = [
-  ...makeCrudTools({
-    entityName: "relationship",
-    basePath: "/relationships",
-    createSchema: relationshipCreateSchema,
-    updateSchema: relationshipUpdateSchema,
-  }),
-];
-
-// ── Relationship Types ── (read-only per API docs)
-
-const relationshipTypeTools: ToolDef[] = [
-  ...makeCrudTools({
-    entityName: "relationship_type",
-    basePath: "/relationshiptypes",
-    pluralName: "relationship_types",
-  }),
-];
-
-// ── Relationship Type Groups ── (read-only per API docs)
-
-const relationshipTypeGroupTools: ToolDef[] = [
-  ...makeCrudTools({
-    entityName: "relationship_type_group",
-    basePath: "/relationshiptypegroups",
-    pluralName: "relationship_type_groups",
-  }),
-];
-
-// ── Gifts ──
-
-const giftCreateSchema = z.object({
+const giftFields = {
   contact_id: z.number().int().describe("Contact ID"),
-  recipient_id: z.number().int().nullable().optional().describe("ID of the contact the gift is for (partner/child)"),
+  recipient_id: z.number().int().nullable().describe("ID of the contact the gift is for (partner/child)"),
   name: z.string().max(255).describe("Gift name"),
-  comment: z.string().nullable().optional().describe("Gift comment"),
-  url: z.string().nullable().optional().describe("Gift URL"),
-  amount: z.string().nullable().optional().describe("Gift amount"),
-  status: z.string().optional().describe("Gift status: idea, received, offered"),
-  date: z.string().nullable().optional().describe("Gift date (YYYY-MM-DD)"),
-});
+  comment: z.string().nullable().describe("Gift comment"),
+  url: z.string().nullable().describe("Gift URL"),
+  amount: z.string().nullable().describe("Gift amount"),
+  status: z.string().describe("Gift status: idea, received, offered"),
+  date: z.string().nullable().describe("Gift date (YYYY-MM-DD)"),
+};
 
-const giftUpdateSchema = giftCreateSchema.extend({ id: idSchema });
-
-const giftTools: ToolDef[] = [
-  ...makeCrudTools({
-    entityName: "gift",
-    basePath: "/gifts",
-    createSchema: giftCreateSchema,
-    updateSchema: giftUpdateSchema,
-  }),
-
-  // Associate a photo to a gift
-  {
-    name: "monica_associate_gift_photo",
-    description: "Associate a photo with a gift.",
-    schema: z.object({
-      gift_id: idSchema,
-      photo_id: idSchema,
-    }),
-    handler: async (client, args) => {
-      return client.update(`/gifts/${args.gift_id}/photo/${args.photo_id}`, {});
+const giftTool = makeEntityTool({
+  entityName: "gift",
+  basePath: "/gifts",
+  createSchema: z.object(giftFields),
+  extraActions: {
+    associate_photo: {
+      description: "Associate a photo with a gift.",
+      schema: { photo_id: idSchema.describe("Photo ID to associate") },
+      handler: async (client, args) => client.update(`/gifts/${args.id}/photo/${args.photo_id}`, {}),
     },
   },
-];
+});
 
-// ── Debts ──
-
-const debtCreateSchema = z.object({
+const debtFields = {
   contact_id: z.number().int().describe("Contact ID"),
   in_debt: z.string().describe("Who is in debt: 'yes' (user owes contact) or 'no' (contact owes user)"),
   status: z.string().describe("Debt status: 'inprogress' or 'complete'"),
   amount: z.number().describe("Debt amount"),
-  reason: z.string().nullable().optional().describe("Debt reason"),
-});
-
-const debtUpdateSchema = debtCreateSchema.extend({ id: idSchema });
-
-const debtTools: ToolDef[] = [
-  ...makeCrudTools({
-    entityName: "debt",
-    basePath: "/debts",
-    createSchema: debtCreateSchema,
-    updateSchema: debtUpdateSchema,
-  }),
-];
+  reason: z.string().nullable().describe("Debt reason"),
+};
 
 export default [
-  ...relationshipTools,
-  ...relationshipTypeTools,
-  ...relationshipTypeGroupTools,
-  ...giftTools,
-  ...debtTools,
-];
+  makeEntityTool({ entityName: "relationship", basePath: "/relationships", createSchema: z.object(relationshipFields) }),
+  makeEntityTool({ entityName: "relationship_type", basePath: "/relationshiptypes", actions: ["list", "get"] }),
+  makeEntityTool({ entityName: "relationship_type_group", basePath: "/relationshiptypegroups", actions: ["list", "get"] }),
+  giftTool,
+  makeEntityTool({ entityName: "debt", basePath: "/debts", createSchema: z.object(debtFields) }),
+] as ToolDef[];

@@ -10,92 +10,149 @@ export interface ToolDef {
   handler: ToolHandler;
 }
 
-// ── Pagination schema (shared) ──
+// ── Shared schemas ──
 
 export const paginationSchema = {
   limit: z.number().int().min(1).max(100).optional().describe("Page size (max 100)"),
   page: z.number().int().min(1).optional().describe("Page number"),
 };
 
-// ── ID schema (shared) ──
-
 export const idSchema = z.number().int().positive().describe("Entity ID");
 
-// ── Generic CRUD factory ──
-// Generates list/get/create/update/delete tools for a given entity.
-// `basePath` is the API path e.g. "/contacts"
-// `entityName` is the human name e.g. "contact"
-// `createSchema` and `updateSchema` are zod objects for input validation.
+// ── Action-based entity tool factory ──
+//
+// Design: instead of 5 separate tools per entity (list/get/create/update/delete),
+// we produce ONE tool that takes an `action` parameter. This:
+//
+// 1. Reduces tool count by ~5x (146 → ~30 tools)
+// 2. Each tool definition is ~300-500 tokens — 30 tools = ~10-15K tokens vs ~50K+
+// 3. Delete is an action choice, not a separate tool — harder to trigger accidentally
+// 4. The AI sees fewer options = better tool selection (research shows degradation >15-20 tools)
+//
+// The tradeoff: the AI must correctly choose `action` AND fill the right fields.
+// We mitigate this with clear descriptions and the action enum.
 
-export function makeCrudTools(opts: {
+export type EntityAction = "list" | "get" | "create" | "update" | "delete";
+
+export function makeEntityTool(opts: {
+  entityName: string;
+  basePath: string;
+  actions?: EntityAction[];
+  createSchema?: z.ZodObject<z.ZodRawShape>;
+  listParams?: Record<string, z.ZodTypeAny>;
+  extraActions?: Record<string, {
+    description: string;
+    handler: (client: MonicaClient, args: any) => Promise<unknown>;
+    schema?: Record<string, z.ZodTypeAny>;
+  }>;
+}): ToolDef {
+  const { entityName, basePath } = opts;
+  const actions = opts.actions ?? ["list", "get", "create", "update", "delete"];
+  const hasCreate = actions.includes("create") && opts.createSchema;
+  const hasUpdate = actions.includes("update") && opts.createSchema;
+  const extraActions = opts.extraActions ?? {};
+
+  // Build the action enum — includes standard + extra actions
+  const allActionNames = [...actions, ...Object.keys(extraActions)];
+  const actionEnum = z.enum(allActionNames as [string, ...string[]]);
+
+  // Build the combined schema
+  const schemaShape: z.ZodRawShape = {
+    action: actionEnum.describe(
+      `Operation to perform: ${allActionNames.join(" | ")}. ` +
+      `"list" = paginated list, "get" = by ID, "create" = new record, ` +
+      `"update" = modify by ID, "delete" = remove by ID (irreversible).`
+    ),
+  };
+
+  // ID — required for get/update/delete
+  if (actions.some(a => ["get", "update", "delete"].includes(a))) {
+    schemaShape.id = idSchema.optional().describe(`Entity ID (required for get/update/delete)`);
+  }
+
+  // Pagination — for list
+  if (actions.includes("list")) {
+    Object.assign(schemaShape, paginationSchema);
+    if (opts.listParams) {
+      Object.assign(schemaShape, opts.listParams);
+    }
+  }
+
+  // Create/update fields — spread from createSchema, all made optional
+  if (hasCreate || hasUpdate) {
+    for (const [key, val] of Object.entries(opts.createSchema!.shape)) {
+      // Skip 'id' — we already added it above
+      if (key === "id") continue;
+      const zodVal = val as z.ZodTypeAny;
+      // Make all fields optional in the combined schema
+      schemaShape[key] = zodVal.optional();
+    }
+  }
+
+  // Extra action params
+  for (const [actionName, actionDef] of Object.entries(extraActions)) {
+    if (actionDef.schema) {
+      for (const [key, val] of Object.entries(actionDef.schema)) {
+        schemaShape[key] = val;
+      }
+    }
+  }
+
+  const schema = z.object(schemaShape);
+
+  // Build description
+  const capabilities = actions.join(", ");
+  let desc = `Manage ${entityName}s. Actions: ${capabilities}.`;
+  if (actions.includes("delete")) {
+    desc += ` ⚠️ delete is irreversible.`;
+  }
+  if (Object.keys(extraActions).length > 0) {
+    desc += ` Additional actions: ${Object.keys(extraActions).join(", ")}.`;
+  }
+
+  // Build handler
+  const handler: ToolHandler = async (client, args) => {
+    const action = args.action as string;
+
+    switch (action) {
+      case "list": {
+        const { action: _, id: __, ...params } = args;
+        return client.list(basePath, params);
+      }
+      case "get":
+        return client.getOne(`${basePath}/${args.id}`);
+      case "create": {
+        const { action: _, id: __, limit: ___, page: ____, ...data } = args;
+        return client.create(basePath, data);
+      }
+      case "update": {
+        const { action: _, id, limit: __, page: ___, ...data } = args;
+        return client.update(`${basePath}/${id}`, data);
+      }
+      case "delete":
+        return client.delete(`${basePath}/${args.id}`);
+      default:
+        // Extra actions
+        if (extraActions[action]) {
+          return extraActions[action].handler(client, args);
+        }
+        throw new Error(`Unknown action: ${action}`);
+    }
+  };
+
+  return { name: `monica_${entityName}`, description: desc, schema, handler };
+}
+
+// ── Read-only entity tool (list + get only) ──
+
+export function makeReadOnlyTool(opts: {
   entityName: string;
   basePath: string;
   pluralName?: string;
-  createSchema?: z.ZodObject<z.ZodRawShape>;
-  updateSchema?: z.ZodObject<z.ZodRawShape>;
-  listParams?: Record<string, z.ZodTypeAny>;
-}): ToolDef[] {
-  const tools: ToolDef[] = [];
-  const { entityName, basePath } = opts;
-  const plural = opts.pluralName ?? `${entityName}s`;
-
-  // List
-  tools.push({
-    name: `monica_list_${plural}`,
-    description: `List all ${plural} in your account. Supports pagination.`,
-    schema: z.object({
-      ...paginationSchema,
-      ...(opts.listParams ?? {}),
-    }),
-    handler: async (client, args) => {
-      return client.list(basePath, args);
-    },
+}): ToolDef {
+  return makeEntityTool({
+    entityName: opts.entityName,
+    basePath: opts.basePath,
+    actions: ["list", "get"],
   });
-
-  // Get
-  tools.push({
-    name: `monica_get_${entityName}`,
-    description: `Get a specific ${entityName} by ID.`,
-    schema: z.object({ id: idSchema }),
-    handler: async (client, args) => {
-      return client.getOne(`${basePath}/${args.id}`);
-    },
-  });
-
-  // Create
-  if (opts.createSchema) {
-    tools.push({
-      name: `monica_create_${entityName}`,
-      description: `Create a new ${entityName}.`,
-      schema: opts.createSchema,
-      handler: async (client, args) => {
-        return client.create(basePath, args);
-      },
-    });
-  }
-
-  // Update
-  if (opts.updateSchema) {
-    tools.push({
-      name: `monica_update_${entityName}`,
-      description: `Update an existing ${entityName}.`,
-      schema: opts.updateSchema,
-      handler: async (client, args) => {
-        const { id, ...data } = args;
-        return client.update(`${basePath}/${id}`, data);
-      },
-    });
-  }
-
-  // Delete
-  tools.push({
-    name: `monica_delete_${entityName}`,
-    description: `Delete a ${entityName} by ID.`,
-    schema: z.object({ id: idSchema }),
-    handler: async (client, args) => {
-      return client.delete(`${basePath}/${args.id}`);
-    },
-  });
-
-  return tools;
 }

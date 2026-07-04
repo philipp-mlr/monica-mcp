@@ -1,120 +1,52 @@
 import { z } from "zod";
-import { makeCrudTools, idSchema, type ToolDef } from "../factory.js";
+import { makeEntityTool, type ToolDef } from "../factory.js";
 
-// ── Addresses ──
-
-const addressCreateSchema = z.object({
+const addressFields = {
   name: z.string().max(255).describe("Address label (e.g. 'Home', 'Work')"),
-  street: z.string().max(255).nullable().optional().describe("Street address"),
-  city: z.string().max(255).nullable().optional().describe("City"),
-  province: z.string().max(255).nullable().optional().describe("Province/state"),
-  postal_code: z.string().max(255).nullable().optional().describe("Postal code"),
+  street: z.string().max(255).nullable().describe("Street address"),
+  city: z.string().max(255).nullable().describe("City"),
+  province: z.string().max(255).nullable().describe("Province/state"),
+  postal_code: z.string().max(255).nullable().describe("Postal code"),
   country: z.string().max(3).describe("Country ID (ISO code)"),
   contact_id: z.number().int().describe("Contact ID"),
-});
+};
 
-const addressUpdateSchema = addressCreateSchema.extend({ id: idSchema });
-
-const addressTools: ToolDef[] = [
-  ...makeCrudTools({
-    entityName: "address",
-    basePath: "/addresses",
-    pluralName: "addresses",
-    createSchema: addressCreateSchema,
-    updateSchema: addressUpdateSchema,
-  }),
-];
-
-// ── Contact Fields ──
-
-const contactFieldCreateSchema = z.object({
+const contactFieldFields = {
   contact_id: z.number().int().describe("Contact ID"),
   contact_field_type_id: z.number().int().describe("Contact field type ID"),
   data: z.string().describe("Field content (e.g. email address, phone number)"),
-});
+};
 
-const contactFieldUpdateSchema = contactFieldCreateSchema.extend({ id: idSchema });
-
-const contactFieldTools: ToolDef[] = [
-  ...makeCrudTools({
-    entityName: "contact_field",
-    basePath: "/contactfields",
-    pluralName: "contact_fields",
-    createSchema: contactFieldCreateSchema,
-    updateSchema: contactFieldUpdateSchema,
-  }),
-];
-
-// ── Contact Field Types ──
-
-const contactFieldTypeCreateSchema = z.object({
+const contactFieldTypeFields = {
   name: z.string().max(255).describe("Field type name (e.g. 'Instagram')"),
-  fontawesome_icon: z.string().nullable().optional().describe("FontAwesome icon class"),
-  protocol: z.string().nullable().optional().describe("Protocol (e.g. 'mailto:')"),
+  fontawesome_icon: z.string().nullable().describe("FontAwesome icon class"),
+  protocol: z.string().nullable().describe("Protocol (e.g. 'mailto:')"),
+  delible: z.boolean().describe("Whether this type can be deleted"),
   type: z.string().describe("Type: email, phone, whatsapp, etc."),
-});
+};
 
-const contactFieldTypeUpdateSchema = contactFieldTypeCreateSchema.extend({ id: idSchema });
-
-const contactFieldTypeTools: ToolDef[] = [
-  ...makeCrudTools({
-    entityName: "contact_field_type",
-    basePath: "/contactfieldtypes",
-    pluralName: "contact_field_types",
-    createSchema: contactFieldTypeCreateSchema,
-    updateSchema: contactFieldTypeUpdateSchema,
-  }),
-];
-
-// ── Companies ──
-
-const companyCreateSchema = z.object({
+const companyFields = {
   name: z.string().max(255).describe("Company name"),
-  website: z.string().max(255).nullable().optional().describe("Company website URL"),
-  number_of_employees: z.number().int().nullable().optional().describe("Number of employees"),
-});
+  website: z.string().max(255).nullable().describe("Company website URL"),
+  number_of_employees: z.number().int().nullable().describe("Number of employees"),
+};
 
-const companyUpdateSchema = companyCreateSchema.extend({ id: idSchema });
-
-const companyTools: ToolDef[] = [
-  ...makeCrudTools({
-    entityName: "company",
-    basePath: "/companies",
-    pluralName: "companies",
-    createSchema: companyCreateSchema,
-    updateSchema: companyUpdateSchema,
-  }),
-];
-
-// ── Occupations ──
-
-const occupationCreateSchema = z.object({
+const occupationFields = {
   contact_id: z.number().int().describe("Contact ID"),
   company_id: z.number().int().describe("Company ID"),
   title: z.string().max(255).describe("Job title"),
-  description: z.string().max(1000).nullable().optional().describe("Job description"),
-  salary: z.number().int().nullable().optional().describe("Estimated salary"),
-  salary_unit: z.string().nullable().optional().describe("Salary unit: year, month, week, day, hour"),
-  currently_works_here: z.boolean().nullable().optional().describe("Whether the contact currently works here"),
-  start_date: z.string().nullable().optional().describe("Start date (YYYY-MM-DD)"),
-  end_date: z.string().nullable().optional().describe("End date (YYYY-MM-DD)"),
-});
-
-const occupationUpdateSchema = occupationCreateSchema.extend({ id: idSchema });
-
-const occupationTools: ToolDef[] = [
-  ...makeCrudTools({
-    entityName: "occupation",
-    basePath: "/occupations",
-    createSchema: occupationCreateSchema,
-    updateSchema: occupationUpdateSchema,
-  }),
-];
+  description: z.string().max(1000).nullable().describe("Job description"),
+  salary: z.number().int().nullable().describe("Estimated salary"),
+  salary_unit: z.string().nullable().describe("Salary unit: year, month, week, day, hour"),
+  currently_works_here: z.boolean().nullable().describe("Whether the contact currently works here"),
+  start_date: z.string().nullable().describe("Start date (YYYY-MM-DD)"),
+  end_date: z.string().nullable().describe("End date (YYYY-MM-DD)"),
+};
 
 export default [
-  ...addressTools,
-  ...contactFieldTools,
-  ...contactFieldTypeTools,
-  ...companyTools,
-  ...occupationTools,
-];
+  makeEntityTool({ entityName: "address", basePath: "/addresses", createSchema: z.object(addressFields) }),
+  makeEntityTool({ entityName: "contact_field", basePath: "/contactfields", createSchema: z.object(contactFieldFields) }),
+  makeEntityTool({ entityName: "contact_field_type", basePath: "/contactfieldtypes", createSchema: z.object(contactFieldTypeFields) }),
+  makeEntityTool({ entityName: "company", basePath: "/companies", createSchema: z.object(companyFields) }),
+  makeEntityTool({ entityName: "occupation", basePath: "/occupations", createSchema: z.object(occupationFields) }),
+] as ToolDef[];

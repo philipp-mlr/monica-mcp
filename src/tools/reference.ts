@@ -1,85 +1,36 @@
 import { z } from "zod";
-import { makeCrudTools, idSchema, type ToolDef } from "../factory.js";
+import { makeReadOnlyTool, type ToolDef } from "../factory.js";
 
-// ── Countries (read-only) ──
+// ── Reference data (read-only) ──
 
-const countryTools: ToolDef[] = [
-  ...makeCrudTools({
-    entityName: "country",
-    basePath: "/countries",
-    pluralName: "countries",
-  }),
-];
+const countryTool = makeReadOnlyTool({ entityName: "country", basePath: "/countries" });
+const currencyTool = makeReadOnlyTool({ entityName: "currency", basePath: "/currencies" });
+const genderTool = makeReadOnlyTool({ entityName: "gender", basePath: "/genders" });
 
-// ── Currencies (read-only) ──
+// ── Audit logs (read-only) ──
 
-const currencyTools: ToolDef[] = [
-  ...makeCrudTools({
-    entityName: "currency",
-    basePath: "/currencies",
-    pluralName: "currencies",
-  }),
-];
+const auditLogTool: ToolDef = {
+  name: "monica_audit_log",
+  description: "List all audit logs in your account.",
+  schema: z.object({}),
+  handler: async (client) => client.list("/auditlogs"),
+};
 
-// ── Genders (read-only) ──
+// ── User (read-only) ──
 
-const genderTools: ToolDef[] = [
-  ...makeCrudTools({
-    entityName: "gender",
-    basePath: "/genders",
-  }),
-];
+const userTool: ToolDef = {
+  name: "monica_user",
+  description: "Get the currently authenticated user's information.",
+  schema: z.object({}),
+  handler: async (client) => client.getOne("/me"),
+};
 
-// ── Audit Logs (read-only) ──
+// ── Photos (list/get/delete — upload not supported by Monica API) ──
 
-const auditLogTools: ToolDef[] = [
-  {
-    name: "monica_list_audit_logs",
-    description: "List all audit logs in your account.",
-    schema: z.object({}),
-    handler: async (client) => {
-      return client.list("/auditlogs");
-    },
-  },
-];
+const photoTool = makeReadOnlyTool({ entityName: "photo", basePath: "/photos" });
 
-// ── User (read-only, no delete) ──
+// ── Documents (list/get/delete — upload not supported by Monica API) ──
 
-const userTools: ToolDef[] = [
-  {
-    name: "monica_get_user",
-    description: "Get the currently authenticated user's information.",
-    schema: z.object({}),
-    handler: async (client) => {
-      return client.getOne("/me");
-    },
-  },
-];
+const documentTool = makeReadOnlyTool({ entityName: "document", basePath: "/documents" });
 
-// ── Photos (list/get/delete only — upload not supported by Monica API) ──
-
-const photoTools: ToolDef[] = [
-  ...makeCrudTools({
-    entityName: "photo",
-    basePath: "/photos",
-  }),
-];
-
-// ── Documents (list/get/delete only — upload not supported by Monica API) ──
-
-const documentTools: ToolDef[] = [
-  ...makeCrudTools({
-    entityName: "document",
-    basePath: "/documents",
-  }),
-];
-
-export default [
-  ...countryTools,
-  ...currencyTools,
-  ...genderTools,
-  ...auditLogTools,
-  ...userTools,
-  ...photoTools,
-  ...documentTools,
-];
+export default [countryTool, currencyTool, genderTool, auditLogTool, userTool, photoTool, documentTool];
