@@ -22,7 +22,8 @@
     "prepublishOnly": "npm run build"
   },
   "engines": {
-    "node": ">=18"
+    "node": ">=18",
+    "npm": ">=11.5"
   },
   "keywords": [
     "mcp",
